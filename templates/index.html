@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisionX HUD</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --hud-green: #00ff88;
+            --hud-cyan: #00e5ff;
+            --hud-red: #ff2d55;
+            --hud-dim: rgba(0, 255, 136, 0.15);
+            --hud-border: rgba(0, 255, 136, 0.3);
+            --bg: #030a06;
+            --text: #a0ffcc;
+            --mono: 'Share Tech Mono', monospace;
+            --display: 'Orbitron', sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--hud-green);
+            font-family: var(--mono);
+            min-height: 100vh;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        /* Scanline overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 255, 136, 0.015) 2px,
+                rgba(0, 255, 136, 0.015) 4px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* Vignette */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.85) 100%);
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        .hud-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ── Camera Feed ── */
+        #camera {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.75;
+        }
+
+        canvas { display: none; }
+
+        /* ── HUD Overlay ── */
+        .hud-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        /* Corner brackets */
+        .corner {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+        }
+        .corner--tl { top: 24px; left: 24px; border-top: 2px solid var(--hud-green); border-left: 2px solid var(--hud-green); }
+        .corner--tr { top: 24px; right: 24px; border-top: 2px solid var(--hud-green); border-right: 2px solid var(--hud-green); }
+        .corner--bl { bottom: 24px; left: 24px; border-bottom: 2px solid var(--hud-green); border-left: 2px solid var(--hud-green); }
+        .corner--br { bottom: 24px; right: 24px; border-bottom: 2px solid var(--hud-green); border-right: 2px solid var(--hud-green); }
+
+        /* Center crosshair */
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+        }
+        .crosshair::before, .crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(0, 255, 136, 0.4);
+        }
+        .crosshair::before { width: 1px; height: 100%; left: 50%; top: 0; }
+        .crosshair::after { height: 1px; width: 100%; top: 50%; left: 0; }
+        .crosshair-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 1px solid rgba(0, 255, 136, 0.5);
+            border-radius: 50%;
+            animation: pulse-ring 2s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+            50% { transform: translate(-50%, -50%) scale(1.4); opacity: 0.2; }
+        }
+
+        /* ── Top Bar ── */
+        .hud-top {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .hud-title {
+            font-family: var(--display);
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 6px;
+            color: var(--hud-green);
+            text-shadow: 0 0 20px var(--hud-green);
+        }
+
+        .hud-status {
+            display: flex;
+            gap: 20px;
+            font-size: 0.65rem;
+            color: var(--text);
+            letter-spacing: 2px;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background: var(--hud-green);
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: blink 1.5s infinite;
+            box-shadow: 0 0 6px var(--hud-green);
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.2; }
+        }
+
+        .hud-time {
+            font-family: var(--display);
+            font-size: 0.75rem;
+            color: var(--hud-cyan);
+            letter-spacing: 3px;
+        }
+
+        /* ── Left Panel ── */
+        .hud-left {
+            position: absolute;
+            left: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+
+        .hud-metric {
+            font-size: 0.6rem;
+            color: rgba(0, 255, 136, 0.5);
+            letter-spacing: 2px;
+            line-height: 1.8;
+        }
+
+        .hud-metric span {
+            color: var(--hud-cyan);
+            font-size: 0.75rem;
+        }
+
+        .hud-bar {
+            width: 80px;
+            height: 2px;
+            background: rgba(0, 255, 136, 0.1);
+            margin-top: 4px;
+        }
+
+        .hud-bar-fill {
+            height: 100%;
+            background: var(--hud-green);
+            box-shadow: 0 0 6px var(--hud-green);
+            transition: width 0.5s ease;
+        }
+
+        /* ── Bottom Panel ── */
+        .hud-bottom {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 32px;
+            pointer-events: all;
+        }
+
+        /* Result box */
+        .result-box {
+            background: rgba(0, 10, 5, 0.7);
+            border: 1px solid var(--hud-border);
+            border-left: 3px solid var(--hud-green);
+            padding: 12px 16px;
+            margin-bottom: 14px;
+            font-size: 0.8rem;
+            line-height: 1.7;
+            color: var(--text);
+            letter-spacing: 0.5px;
+            min-height: 56px;
+            max-height: 120px;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+            position: relative;
+        }
+
+        .result-box::before {
+            content: 'ANALYSIS OUTPUT';
+            position: absolute;
+            top: -8px;
+            left: 12px;
+            background: var(--bg);
+            padding: 0 6px;
+            font-size: 0.55rem;
+            color: var(--hud-green);
+            letter-spacing: 3px;
+        }
+
+        .result-box.loading {
+            color: var(--hud-cyan);
+        }
+
+        .typing-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 12px;
+            background: var(--hud-green);
+            animation: blink 0.7s infinite;
+            vertical-align: middle;
+            margin-left: 2px;
+        }
+
+        /* Controls */
+        .hud-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .hud-btn {
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            letter-spacing: 3px;
+            padding: 10px 24px;
+            border: 1px solid var(--hud-green);
+            background: rgba(0, 255, 136, 0.05);
+            color: var(--hud-green);
+            cursor: pointer;
+            transition: all 0.2s;
+            clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+            text-transform: uppercase;
+        }
+
+        .hud-btn:hover {
+            background: rgba(0, 255, 136, 0.15);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            text-shadow: 0 0 8px var(--hud-green);
+        }
+
+        .hud-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .hud-btn.mic {
+            border-color: var(--hud-red);
+            color: var(--hud-red);
+            background: rgba(255, 45, 85, 0.05);
+            clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+        }
+
+        .hud-btn.mic:hover {
+            background: rgba(255, 45, 85, 0.15);
+            box-shadow: 0 0 20px rgba(255, 45, 85, 0.3);
+        }
+
+        .hud-btn.mic.listening {
+            background: rgba(255, 45, 85, 0.2);
+            box-shadow: 0 0 30px rgba(255, 45, 85, 0.5);
+            animation: mic-pulse 1s infinite;
+        }
+
+        @keyframes mic-pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 45, 85, 0.4); }
+            50% { box-shadow: 0 0 40px rgba(255, 45, 85, 0.8); }
+        }
+
+        .hud-shortcut {
+            font-size: 0.6rem;
+            color: rgba(0, 255, 136, 0.3);
+            letter-spacing: 2px;
+            margin-left: auto;
+        }
+
+        /* ── Scan animation ── */
+        .scan-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--hud-green), transparent);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .scan-line.active {
+            animation: scan 0.8s ease-in-out;
+        }
+
+        @keyframes scan {
+            0% { top: 0; opacity: 0.8; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        /* ── Right corner info ── */
+        .hud-right {
+            position: absolute;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            text-align: right;
+            pointer-events: none;
+        }
+
+        .hud-coords {
+            font-size: 0.6rem;
+            color: rgba(0, 229, 255, 0.4);
+            letter-spacing: 2px;
+            line-height: 2;
+        }
+
+        /* ── Boot animation ── */
+        .boot-screen {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            transition: opacity 0.5s;
+        }
+
+        .boot-title {
+            font-family: var(--display);
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--hud-green);
+            text-shadow: 0 0 40px var(--hud-green);
+            letter-spacing: 12px;
+            animation: flicker 0.15s infinite alternate;
+        }
+
+        @keyframes flicker {
+            0% { opacity: 1; }
+            100% { opacity: 0.92; }
+        }
+
+        .boot-log {
+            margin-top: 40px;
+            font-size: 0.7rem;
+            color: rgba(0, 255, 136, 0.6);
+            letter-spacing: 2px;
+            text-align: left;
+            width: 320px;
+        }
+
+        .boot-log div {
+            margin: 4px 0;
+            opacity: 0;
+            animation: fadeIn 0.3s forwards;
+        }
+
+        @keyframes fadeIn { to { opacity: 1; } }
+
+        .boot-progress {
+            margin-top: 24px;
+            width: 320px;
+            height: 2px;
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .boot-progress-fill {
+            height: 100%;
+            background: var(--hud-green);
+            box-shadow: 0 0 10px var(--hud-green);
+            width: 0;
+            transition: width 2s ease;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Boot Screen -->
+<div class="boot-screen" id="bootScreen">
+    <div class="boot-title">VISIONX</div>
+    <div class="boot-log" id="bootLog"></div>
+    <div class="boot-progress"><div class="boot-progress-fill" id="bootProgress"></div></div>
+</div>
+
+<!-- Main HUD -->
+<div class="hud-container">
+    <video id="camera" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+
+    <div class="scan-line" id="scanLine"></div>
+
+    <!-- HUD Overlay -->
+    <div class="hud-overlay">
+        <div class="corner corner--tl"></div>
+        <div class="corner corner--tr"></div>
+        <div class="corner corner--bl"></div>
+        <div class="corner corner--br"></div>
+
+        <div class="crosshair">
+            <div class="crosshair-ring"></div>
+        </div>
+    </div>
+
+    <!-- Top Bar -->
+    <div class="hud-top">
+        <div class="hud-title">VISIONX</div>
+        <div class="hud-status">
+            <span><span class="status-dot"></span>SYS ONLINE</span>
+            <span><span class="status-dot" style="background:var(--hud-cyan);box-shadow:0 0 6px var(--hud-cyan)"></span>AI READY</span>
+        </div>
+        <div class="hud-time" id="hudTime">--:--:--</div>
+    </div>
+
+    <!-- Left Panel -->
+    <div class="hud-left">
+        <div class="hud-metric">FOCUS<br><span id="focusVal">98%</span></div>
+        <div class="hud-bar"><div class="hud-bar-fill" id="focusBar" style="width:98%"></div></div>
+        <br>
+        <div class="hud-metric">SIGNAL<br><span id="signalVal">MAX</span></div>
+        <div class="hud-bar"><div class="hud-bar-fill" style="width:100%;background:var(--hud-cyan);box-shadow:0 0 6px var(--hud-cyan)"></div></div>
+        <br>
+        <div class="hud-metric">MODE<br><span>VISION</span></div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="hud-right">
+        <div class="hud-coords" id="mouseCoords">X: 000 Y: 000</div>
+        <br>
+        <div class="hud-coords">CAM: ACTIVE</div>
+        <div class="hud-coords">RES: HD</div>
+        <div class="hud-coords" id="fpsCounter">FPS: --</div>
+    </div>
+
+    <!-- Bottom Panel -->
+    <div class="hud-bottom">
+        <div class="result-box" id="result">
+            SYSTEM READY. PRESS CAPTURE OR SPEAK A COMMAND.<span class="typing-cursor"></span>
+        </div>
+        <div class="hud-controls">
+            <button class="hud-btn" id="captureBtn" onclick="capture()">▶ CAPTURE</button>
+            <button class="hud-btn mic" id="micBtn" onclick="toggleMic()">◉ SPEAK</button>
+            <div class="hud-shortcut">SPACE: CAPTURE &nbsp;|&nbsp; M: MIC &nbsp;|&nbsp; ESC: CLEAR</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ── Boot Sequence ──────────────────────────────────────
+    const bootMessages = [
+        '> INITIALIZING VISIONX v2.5...',
+        '> LOADING NEURAL ENGINE...',
+        '> CONNECTING GEMINI AI...',
+        '> CALIBRATING OPTICS...',
+        '> REQUESTING CAMERA ACCESS...',
+        '> SYSTEM READY.'
+    ];
+
+    const bootLog = document.getElementById('bootLog');
+    const bootProgress = document.getElementById('bootProgress');
+    const bootScreen = document.getElementById('bootScreen');
+
+    bootMessages.forEach((msg, i) => {
+        const div = document.createElement('div');
+        div.textContent = msg;
+        div.style.animationDelay = `${i * 0.35}s`;
+        bootLog.appendChild(div);
+    });
+
+    setTimeout(() => { bootProgress.style.width = '100%'; }, 100);
+    setTimeout(() => {
+        bootScreen.style.opacity = '0';
+        setTimeout(() => bootScreen.remove(), 500);
+    }, 2400);
+
+    // ── Camera ────────────────────────────────────────────
+    const video = document.getElementById('camera');
+    const canvas = document.getElementById('canvas');
+
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        .then(stream => { video.srcObject = stream; })
+        .catch(() => { setResult('❌ CAMERA ACCESS DENIED'); });
+
+    // ── Clock ─────────────────────────────────────────────
+    function updateTime() {
+        const now = new Date();
+        document.getElementById('hudTime').textContent =
+            now.toTimeString().split(' ')[0];
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+
+    // ── Mouse Coords ──────────────────────────────────────
+    document.addEventListener('mousemove', e => {
+        document.getElementById('mouseCoords').textContent =
+            `X: ${String(e.clientX).padStart(4,'0')} Y: ${String(e.clientY).padStart(4,'0')}`;
+    });
+
+    // ── FPS Counter ───────────────────────────────────────
+    let lastTime = performance.now(), frames = 0;
+    function countFPS() {
+        frames++;
+        const now = performance.now();
+        if (now - lastTime >= 1000) {
+            document.getElementById('fpsCounter').textContent = `FPS: ${frames}`;
+            frames = 0;
+            lastTime = now;
+        }
+        requestAnimationFrame(countFPS);
+    }
+    countFPS();
+
+    // ── Get Frame ─────────────────────────────────────────
+    function getFrame() {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        return canvas.toDataURL('image/jpeg', 0.8);
+    }
+
+    // ── Speak ─────────────────────────────────────────────
+    function speak(text) {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+
+    // Auto detect language
+    const isArabic = /[\u0600-\u06FF]/.test(text);
+    const isHindi = /[\u0900-\u097F]/.test(text);
+    const isFrench = /[àâçéèêëîïôùûüÿœæ]/i.test(text);
+
+    if (isArabic) u.lang = 'ar-EG';
+    else if (isHindi) u.lang = 'hi-IN';
+    else if (isFrench) u.lang = 'fr-FR';
+    else u.lang = 'en-US';
+
+    u.rate = 0.9;
+    window.speechSynthesis.speak(u);
+}
+
+    // ── Scan Animation ────────────────────────────────────
+    function triggerScan() {
+        const sl = document.getElementById('scanLine');
+        sl.classList.remove('active');
+        void sl.offsetWidth;
+        sl.classList.add('active');
+    }
+
+    // ── Set Result ────────────────────────────────────────
+    function setResult(text, loading = false) {
+        const r = document.getElementById('result');
+        r.className = 'result-box' + (loading ? ' loading' : '');
+        r.innerHTML = text + (loading ? '' : '<span class="typing-cursor"></span>');
+    }
+
+    // ── Capture ───────────────────────────────────────────
+    async function capture() {
+        const btn = document.getElementById('captureBtn');
+        btn.disabled = true;
+        triggerScan();
+        setResult('ANALYZING... PLEASE WAIT', true);
+
+        try {
+            const image = getFrame();
+            const res = await fetch('/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image })
+            });
+            const data = await res.json();
+            setResult(data.result || '⚠ NO DATA DETECTED');
+            speak(data.result);
+        } catch {
+            setResult('❌ CONNECTION ERROR');
+        }
+
+        btn.disabled = false;
+    }
+
+    // ── Mic ───────────────────────────────────────────────
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition, listening = false;
+
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.lang = 'ar-EG';
+        recognition.continuous = false;
+
+        recognition.onstart = () => {
+            listening = true;
+            document.getElementById('micBtn').classList.add('listening');
+            document.getElementById('micBtn').textContent = '◉ LISTENING...';
+            setResult('🎤 LISTENING... SPEAK NOW', true);
+        };
+
+        recognition.onend = () => {
+            listening = false;
+            document.getElementById('micBtn').classList.remove('listening');
+            document.getElementById('micBtn').textContent = '◉ SPEAK';
+        };
+
+        recognition.onresult = async (e) => {
+            const prompt = e.results[0][0].transcript;
+            triggerScan();
+            setResult(`CMD: "${prompt.toUpperCase()}" — PROCESSING...`, true);
+
+            try {
+                const image = getFrame();
+                const res = await fetch('/analyze_prompt', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image, prompt })
+                });
+                const data = await res.json();
+                setResult(data.result || '⚠ NO DATA');
+                speak(data.result);
+            } catch {
+                setResult('❌ CONNECTION ERROR');
+            }
+        };
+    }
+
+    function toggleMic() {
+        if (!recognition) { setResult('⚠ SPEECH NOT SUPPORTED IN THIS BROWSER'); return; }
+        listening ? recognition.stop() : recognition.start();
+    }
+
+    // ── Keyboard Shortcuts ────────────────────────────────
+    document.addEventListener('keydown', e => {
+        if (e.code === 'Space') { e.preventDefault(); capture(); }
+        if (e.code === 'KeyM') toggleMic();
+        if (e.code === 'Escape') {
+            window.speechSynthesis.cancel();
+            setResult('SYSTEM READY.');
+        }
+    });
+</script>
+</body>
+</html>
