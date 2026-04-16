@@ -11,10 +11,12 @@ app = Flask(__name__)
 # ── Multiple API Keys ──────────────────────────────────────
 import os
 
+import os
+
 API_KEYS = [
-    os.getenv("AIzaSyALLyaL04_mLdqbhVn2xc4yKPn32ExuAFk"),
-    os.getenv("AIzaSyD3A8IW0XwiFkApcvle137fGAahyR3J0Jw"),
-    os.getenv("AIzaSyCJHvHIsYAKzeYgcDMKbOTkK24s-JIFYiY"),
+    os.getenv("GEMINI_API_KEY_1"),
+    os.getenv("GEMINI_API_KEY_2"),
+    os.getenv("GEMINI_API_KEY_3")
 ]
 
 PROMPT = """You are an AI assistant built into smart glasses for visually impaired people.
