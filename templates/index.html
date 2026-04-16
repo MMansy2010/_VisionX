@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>VisionX HUD</title>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
@@ -430,6 +430,84 @@
             box-shadow: 0 0 10px var(--hud-green);
             width: 0;
             transition: width 2s ease;
+        }
+
+        /* ── Mobile Responsiveness ── */
+        @media (max-width: 768px) {
+            .hud-top {
+                padding: 12px 16px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            .hud-title {
+                font-size: 1.1rem;
+                letter-spacing: 4px;
+                text-align: center;
+                width: 100%;
+            }
+            .hud-status {
+                gap: 10px;
+                width: 100%;
+                justify-content: center;
+                font-size: 0.55rem;
+            }
+            .hud-time {
+                position: absolute;
+                top: 12px;
+                right: 16px;
+                font-size: 0.65rem;
+            }
+
+            .corner { width: 20px; height: 20px; }
+            .corner--tl { top: 12px; left: 12px; }
+            .corner--tr { top: 12px; right: 12px; }
+            .corner--bl { bottom: 12px; left: 12px; }
+            .corner--br { bottom: 12px; right: 12px; }
+
+            .crosshair { width: 40px; height: 40px; }
+            
+            .hud-left { 
+                left: 12px; 
+                top: 25%; 
+                transform: translateY(0); 
+                gap: 4px; 
+            }
+            .hud-right { 
+                right: 12px; 
+                top: 25%; 
+                transform: translateY(0); 
+                gap: 4px; 
+            }
+            
+            .hud-metric { font-size: 0.5rem; line-height: 1.4; }
+            .hud-metric span { font-size: 0.6rem; }
+            .hud-bar { width: 40px; margin-top: 2px; }
+            .hud-coords { font-size: 0.5rem; line-height: 1.5; }
+
+            .hud-bottom { padding: 12px 16px; }
+            .result-box { 
+                padding: 8px 12px; 
+                font-size: 0.7rem; 
+                min-height: 48px; 
+                margin-bottom: 10px; 
+            }
+            .hud-controls { 
+                gap: 8px; 
+                justify-content: center; 
+                flex-wrap: wrap; 
+            }
+            .hud-btn { 
+                padding: 10px 16px; 
+                font-size: 0.65rem; 
+                flex: 1; 
+                text-align: center; 
+                min-width: 120px; 
+            }
+            .hud-shortcut { display: none; }
+            
+            .boot-title { font-size: 2rem; letter-spacing: 6px; }
+            .boot-log, .boot-progress { width: 240px; font-size: 0.6rem; }
         }
     </style>
 </head>
