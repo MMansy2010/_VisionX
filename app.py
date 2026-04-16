@@ -39,7 +39,7 @@ Look at this image and do the following:
 
 4. Keep response SHORT and CLEAR.
 5. IGNORE any UI text like "SPACE: Capture" or "ESC: Exit".
-6. Answer the user in the same language he used."""
+6. Answer the user in Arabic except if he asked for a specific language."""
 
 
 def analyze_image(img, custom_prompt=None):
