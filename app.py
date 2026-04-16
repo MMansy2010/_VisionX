@@ -1,3 +1,5 @@
+from pprint import pp
+
 from flask import Flask, render_template, request, jsonify
 from google import genai
 import base64
@@ -81,10 +83,7 @@ Be short and clear."""
     result = analyze_image(img, custom_prompt)
     return jsonify({'result': result})
 
-
-from pyngrok import ngrok
-
 if __name__ == '__main__':
-    public_url = ngrok.connect(5000)
-    print(f"🌐 Public URL: {public_url}")
-    app.run(debug=False)
+    import os
+
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
